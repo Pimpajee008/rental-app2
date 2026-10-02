@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารบ้านเช่า 30 ห้อง & บันทึกรายรับ-รายจ่าย</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Prompt -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; padding: 0; }
+            .print-container { box-shadow: none !important; border: none !important; width: 100% !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-indigo-700 text-white shadow-lg no-print">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center flex-wrap gap-4">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-building-user text-2xl text-amber-300"></i>
+                <h1 class="text-xl font-bold">ระบบบริหารบ้านเช่า 30 ห้อง</h1>
+            </div>
+            
+            <!-- Connection Status -->
+            <div class="flex items-center space-x-2 text-xs bg-indigo-800 px-3 py-1.5 rounded-full border border-indigo-500">
+                <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span id="status-text">โหมด LocalStorage (ไม่ได้เชื่อมต่อ Sheets)</span>
+                <button onclick="toggleConfigModal()" class="ml-2 text-amber-300 hover:underline"><i class="fa-solid fa-gear"></i> ตั้งค่า API</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full no-print">
+        
+        <!-- Controls & Zone Filters -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="text-sm font-semibold text-slate-600">กรองตามโซน:</span>
+                <button onclick="filterZone('ALL', event)" id="btn-zone-ALL" class="zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white">ทั้งหมด (30)</button>
+                <button onclick="filterZone('Zone A', event)" id="btn-zone-A" class="zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">โซน A (5)</button>
+                <button onclick="filterZone('Zone B', event)" id="btn-zone-B" class="zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">โซน B (15)</button>
+                <button onclick="filterZone('Zone C', event)" id="btn-zone-C" class="zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200">โซน C (10)</button>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="fetchDataFromSheets()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> ดึงข้อมูลล่าสุด
+                </button>
+                <button onclick="openExpenseModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus"></i> บันทึกรายจ่าย
+                </button>
+            </div>
+        </div>
+
+        <!-- Room Grid Section -->
+        <div class="mb-8">
+            <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-door-open text-indigo-600"></i> รายการห้องพักทั้งหมด
+            </h2>
+            <div id="rooms-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                <!-- JS will render room cards here -->
+            </div>
+        </div>
+
+        <!-- Transactions History -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+            <h2 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-receipt text-indigo-600"></i> ประวัติการทำรายการ (รายรับ - รายจ่าย)
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase">
+                            <th class="p-3">วันที่</th>
+                            <th class="p-3">ห้อง / หมวดหมู่</th>
+                            <th class="p-3">ประเภท</th>
+                            <th class="p-3">จำนวนเงิน</th>
+                            <th class="p-3">สถานะ</th>
+                            <th class="p-3 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tx-history-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- JS renders rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: API Settings -->
+    <div id="config-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">เชื่อมต่อ Google Sheets API</h3>
+                <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">วาง URL ที่ได้จาก Web App Deployment ของ Google Apps Script เพื่อให้ทุกเครื่องมองเห็นข้อมูลตรงกัน</p>
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Google Apps Script Web App URL</label>
+                <input type="text" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button onclick="saveApiUrl()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">บันทึก & เชื่อมต่อ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Expense Record (บันทึกรายจ่าย) -->
+    <div id="expense-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-wallet text-rose-500"></i> บันทึกรายการรายจ่าย</h3>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">หมวดหมู่รายจ่าย</label>
+                    <select id="exp-category" class="w-full border rounded-lg p-2.5 bg-slate-50">
+                        <option value="ค่าซ่อมบำรุง">ค่าซ่อมบำรุง / อุปกรณ์</option>
+                        <option value="ค่าทำความสะอาด">ค่าทำความสะอาด / แม่บ้าน</option>
+                        <option value="ค่าส่วนกลาง/น้ำไฟรวม">ค่าส่วนกลาง / ค่าน้ำไฟรวม</option>
+                        <option value="ค่าจ้างพนักงาน">ค่าจ้างพนักงาน</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">รายละเอียด / หมายเหตุ</label>
+                    <input type="text" id="exp-desc" placeholder="เช่น ซ่อมก๊อกน้ำ ห้อง A102" class="w-full border rounded-lg p-2.5">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">จำนวนเงิน (บาท)</label>
+                    <input type="number" id="exp-amount" placeholder="0.00" class="w-full border rounded-lg p-2.5">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-2">
+                <button onclick="closeExpenseModal()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm hover:bg-slate-200">ยกเลิก</button>
+                <button onclick="saveExpense()" class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700">บันทึกรายจ่าย</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Meter Reading & Payment -->
+    <div id="payment-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">บันทึกค่าเช่า & ค่าน้ำไฟ <span id="modal-room-id" class="text-indigo-600"></span></h3>
+                    <p class="text-xs text-slate-500" id="modal-tenant-name"></p>
+                </div>
+                <button onclick="closePaymentModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="space-y-3 text-sm">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">ค่าเช่าห้อง (บาท)</label>
+                        <input type="number" id="input-rent" class="w-full border rounded-lg p-2 mt-1 bg-slate-50" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">ประจำเดือน</label>
+                        <input type="text" id="input-month" value="ต.ค. 2026" class="w-full border rounded-lg p-2 mt-1">
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <span class="text-xs font-bold text-amber-800 block mb-2"><i class="fa-solid fa-bolt"></i> คำนวณค่าไฟฟ้า (8 บาท/หน่วย)</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label>เลขครั้งก่อน</label>
+                            <input type="number" id="power-prev" oninput="calcTotal()" value="1200" class="w-full border rounded p-1.5 mt-1">
+                        </div>
+                        <div>
+                            <label>เลขครั้งหลัง</label>
+                            <input type="number" id="power-curr" oninput="calcTotal()" value="1250" class="w-full border rounded p-1.5 mt-1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <span class="text-xs font-bold text-blue-800 block mb-2"><i class="fa-solid fa-droplet"></i> คำนวณค่าน้ำประปา (18 บาท/หน่วย)</span>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                            <label>เลขครั้งก่อน</label>
+                            <input type="number" id="water-prev" oninput="calcTotal()" value="300" class="w-full border rounded p-1.5 mt-1">
+                        </div>
+                        <div>
+                            <label>เลขครั้งหลัง</label>
+                            <input type="number" id="water-curr" oninput="calcTotal()" value="310" class="w-full border rounded p-1.5 mt-1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t flex justify-between items-center text-base font-bold text-slate-800">
+                    <span>ยอดรวมสุทธิ:</span>
+                    <span id="grand-total-display" class="text-indigo-600 text-xl">0 บาท</span>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-2">
+                <button onclick="previewInvoice()" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200">ดูใบแจ้งหนี้/ใบเสร็จ</button>
+                <button onclick="savePayment()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">บันทึกการชำระเงิน</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Invoice/Receipt Modal -->
+    <div id="invoice-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 print-container">
+            <div class="text-center border-b pb-4 mb-4">
+                <h2 class="text-xl font-bold text-slate-800">ใบเสร็จรับเงิน / Receipt</h2>
+                <p class="text-xs text-slate-500">โครงการบ้านเช่าสุขใจ</p>
+                <p class="text-xs text-slate-400 mt-1">วันที่: <span id="rec-date"></span> | เลขที่: <span id="rec-no"></span></p>
+            </div>
+
+            <div class="space-y-2 text-sm text-slate-700 mb-6">
+                <div class="flex justify-between">
+                    <span class="font-semibold">ห้องพัก:</span>
+                    <span id="rec-room"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-semibold">ผู้เช่า:</span>
+                    <span id="rec-tenant"></span>
+                </div>
+                <div class="border-t pt-2 mt-2 space-y-1 text-xs">
+                    <div class="flex justify-between"><span>ค่าเช่าห้อง:</span><span id="rec-rent"></span></div>
+                    <div class="flex justify-between"><span>ค่าไฟฟ้า:</span><span id="rec-power"></span></div>
+                    <div class="flex justify-between"><span>ค่าน้ำประปา:</span><span id="rec-water"></span></div>
+                </div>
+                <div class="border-t pt-2 flex justify-between font-bold text-base text-slate-900">
+                    <span>ยอดรวมทั้งสิ้น:</span>
+                    <span id="rec-total" class="text-indigo-600"></span>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 no-print">
+                <button onclick="closeInvoiceModal()" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm">ปิด</button>
+                <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> พิมพ์ / พิมพ์เป็น PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State Management
+        let appState = {
+            apiUrl: localStorage.getItem('rental_gas_url') || '',
+            activeZone: 'ALL',
+            rooms: [],
+            transactions: []
+        };
+
+        // Initialize App
+        window.onload = function() {
+            if (appState.apiUrl) {
+                document.getElementById('gas-url-input').value = appState.apiUrl;
+                fetchDataFromSheets();
+            } else {
+                loadLocalFallback();
+            }
+        };
+
+        function toggleConfigModal() {
+            const modal = document.getElementById('config-modal');
+            modal.classList.toggle('hidden');
+            modal.classList.toggle('flex');
+        }
+
+        function saveApiUrl() {
+            const url = document.getElementById('gas-url-input').value.trim();
+            localStorage.setItem('rental_gas_url', url);
+            appState.apiUrl = url;
+            toggleConfigModal();
+            fetchDataFromSheets();
+        }
+
+        // Fetch Data from Google Sheets API
+        async function fetchDataFromSheets() {
+            if (!appState.apiUrl) return loadLocalFallback();
+
+            updateStatus('กำลังโหลดข้อมูล...', 'bg-amber-400');
+            try {
+                const res = await fetch(appState.apiUrl);
+                const data = await res.json();
+                appState.rooms = data.rooms || [];
+                appState.transactions = data.transactions || [];
+                
+                updateStatus('เชื่อมต่อ Google Sheets แล้ว', 'bg-emerald-500');
+                renderRooms();
+                renderTransactions();
+            } catch (err) {
+                console.error(err);
+                updateStatus('เชื่อมต่อล้มเหลว (ใช้ข้อมูล Local)', 'bg-red-500');
+                loadLocalFallback();
+            }
+        }
+
+        function updateStatus(text, bgClass) {
+            document.getElementById('status-text').innerText = text;
+            const dot = document.getElementById('status-dot');
+            dot.className = `w-2.5 h-2.5 rounded-full ${bgClass}`;
+        }
+
+        // Fallback for LocalStorage
+        function loadLocalFallback() {
+            if (!localStorage.getItem('local_rooms')) {
+                let defaultRooms = [];
+                for(let i=1; i<=5; i++) defaultRooms.push({ room_id: `A10${i}`, zone: 'Zone A', tenant_name: `ผู้เช่า A${i}`, rent_price: 3500, status: 'มีผู้เช่า' });
+                for(let i=1; i<=15; i++) defaultRooms.push({ room_id: `B1${i<10?'0'+i:i}`, zone: 'Zone B', tenant_name: `ผู้เช่า B${i}`, rent_price: 3000, status: 'มีผู้เช่า' });
+                for(let i=1; i<=10; i++) defaultRooms.push({ room_id: `C1${i<10?'0'+i:i}`, zone: 'Zone C', tenant_name: `ผู้เช่า C${i}`, rent_price: 2800, status: 'มีผู้เช่า' });
+                localStorage.setItem('local_rooms', JSON.stringify(defaultRooms));
+            }
+
+            appState.rooms = JSON.parse(localStorage.getItem('local_rooms'));
+            appState.transactions = JSON.parse(localStorage.getItem('local_txs') || '[]');
+            renderRooms();
+            renderTransactions();
+        }
+
+        // Render Rooms Grid
+        function renderRooms() {
+            const container = document.getElementById('rooms-grid');
+            container.innerHTML = '';
+
+            const filtered = appState.rooms.filter(r => {
+                if (appState.activeZone === 'ALL') return true;
+                const zoneClean = (r.zone || '').toString().trim().toLowerCase();
+                const targetClean = appState.activeZone.toString().trim().toLowerCase();
+                return zoneClean === targetClean;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-6 text-slate-400">ไม่พบห้องในโซนนี้</div>`;
+                return;
+            }
+
+            filtered.forEach(room => {
+                const card = document.createElement('div');
+                card.className = "bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between";
+                card.onclick = () => openPaymentModal(room);
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-base text-slate-800">${room.room_id}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${room.zone}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 truncate"><i class="fa-regular fa-user"></i> ${room.tenant_name}</p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t flex justify-between items-center">
+                        <span class="text-xs text-indigo-600 font-semibold">${parseFloat(room.rent_price || 0).toLocaleString()} ฿</span>
+                        <span class="text-[10px] text-emerald-600 font-medium">บันทึกค่าเช่า</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterZone(zone, evt) {
+            appState.activeZone = zone;
+            document.querySelectorAll('.zone-btn').forEach(btn => {
+                btn.className = "zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200";
+            });
+            if(evt && evt.target) {
+                evt.target.className = "zone-btn px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white";
+            }
+            renderRooms();
+        }
+
+        // Expense Modal Functions
+        function openExpenseModal() {
+            document.getElementById('expense-modal').classList.remove('hidden');
+            document.getElementById('expense-modal').classList.add('flex');
+        }
+
+        function closeExpenseModal() {
+            document.getElementById('expense-modal').classList.add('hidden');
+            document.getElementById('expense-modal').classList.remove('flex');
+        }
+
+        async function saveExpense() {
+            const category = document.getElementById('exp-category').value;
+            const desc = document.getElementById('exp-desc').value.trim();
+            const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+
+            if (!desc || amount <= 0) {
+                alert('กรุณากรอกรายละเอียดและจำนวนเงินให้ถูกต้อง');
+                return;
+            }
+
+            const txData = {
+                action: 'ADD_TRANSACTION',
+                trans_id: 'EX' + Date.now().toString().slice(-6),
+                room_id: '-',
+                type: 'รายจ่าย',
+                category: `${category} (${desc})`,
+                amount: amount,
+                status: 'จ่ายแล้ว',
+                receipt_no: '-'
+            };
+
+            if (appState.apiUrl) {
+                await fetch(appState.apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(txData)
+                });
+            } else {
+                appState.transactions.unshift(txData);
+                localStorage.setItem('local_txs', JSON.stringify(appState.transactions));
+            }
+
+            closeExpenseModal();
+            document.getElementById('exp-desc').value = '';
+            document.getElementById('exp-amount').value = '';
+            fetchDataFromSheets();
+        }
+
+        // Modal Controls & Calculation
+        let currentSelectedRoom = null;
+
+        function openPaymentModal(room) {
+            currentSelectedRoom = room;
+            document.getElementById('modal-room-id').innerText = room.room_id;
+            document.getElementById('modal-tenant-name').innerText = `ผู้เช่า: ${room.tenant_name}`;
+            document.getElementById('input-rent').value = room.rent_price;
+            calcTotal();
+            document.getElementById('payment-modal').classList.remove('hidden');
+            document.getElementById('payment-modal').classList.add('flex');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.add('hidden');
+            document.getElementById('payment-modal').classList.remove('flex');
+        }
+
+        function calcTotal() {
+            const rent = parseFloat(document.getElementById('input-rent').value) || 0;
+            const pPrev = parseFloat(document.getElementById('power-prev').value) || 0;
+            const pCurr = parseFloat(document.getElementById('power-curr').value) || 0;
+            const wPrev = parseFloat(document.getElementById('water-prev').value) || 0;
+            const wCurr = parseFloat(document.getElementById('water-curr').value) || 0;
+
+            const powerUnits = Math.max(0, pCurr - pPrev);
+            const waterUnits = Math.max(0, wCurr - wPrev);
+
+            const totalPower = powerUnits * 8;
+            const totalWater = waterUnits * 18;
+            const grandTotal = rent + totalPower + totalWater;
+
+            document.getElementById('grand-total-display').innerText = `${grandTotal.toLocaleString()} บาท`;
+            return { rent, totalPower, totalWater, grandTotal };
+        }
+
+        // Save Payment Transaction
+        async function savePayment() {
+            const totals = calcTotal();
+            const txData = {
+                action: 'ADD_TRANSACTION',
+                trans_id: 'TX' + Date.now().toString().slice(-6),
+                room_id: currentSelectedRoom.room_id,
+                type: 'รายรับ',
+                category: 'ค่าเช่าห้อง & น้ำไฟ',
+                amount: totals.grandTotal,
+                status: 'ชำระแล้ว',
+                receipt_no: 'REC' + Date.now().toString().slice(-6)
+            };
+
+            if (appState.apiUrl) {
+                await fetch(appState.apiUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(txData)
+                });
+            } else {
+                appState.transactions.unshift(txData);
+                localStorage.setItem('local_txs', JSON.stringify(appState.transactions));
+            }
+
+            closePaymentModal();
+            previewInvoice(txData.receipt_no, totals);
+            fetchDataFromSheets();
+        }
+
+        function previewInvoice(receiptNo = 'REC12345', totals = calcTotal()) {
+            document.getElementById('rec-date').innerText = new Date().toLocaleDateString('th-TH');
+            document.getElementById('rec-no').innerText = receiptNo;
+            document.getElementById('rec-room').innerText = currentSelectedRoom.room_id;
+            document.getElementById('rec-tenant').innerText = currentSelectedRoom.tenant_name;
+            document.getElementById('rec-rent').innerText = `${totals.rent.toLocaleString()} บาท`;
+            document.getElementById('rec-power').innerText = `${totals.totalPower.toLocaleString()} บาท`;
+            document.getElementById('rec-water').innerText = `${totals.totalWater.toLocaleString()} บาท`;
+            document.getElementById('rec-total').innerText = `${totals.grandTotal.toLocaleString()} บาท`;
+
+            document.getElementById('invoice-modal').classList.remove('hidden');
+            document.getElementById('invoice-modal').classList.add('flex');
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoice-modal').classList.add('hidden');
+            document.getElementById('invoice-modal').classList.remove('flex');
+        }
+
+        // Render History Table
+        function renderTransactions() {
+            const tbody = document.getElementById('tx-history-tbody');
+            tbody.innerHTML = '';
+
+            if (appState.transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">ยังไม่มีรายการชำระเงินหรือรายจ่าย</td></tr>`;
+                return;
+            }
+
+            appState.transactions.forEach(tx => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50";
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-500">${tx.date || '-'}</td>
+                    <td class="p-3 font-semibold text-slate-700">${tx.room_id !== '-' ? tx.room_id : ''} ${tx.category || ''}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${tx.type === 'รายรับ' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${tx.type}</span></td>
+                    <td class="p-3 font-bold text-slate-800">${parseFloat(tx.amount || 0).toLocaleString()} ฿</td>
+                    <td class="p-3"><span class="text-xs text-emerald-600 font-medium"><i class="fa-solid fa-circle-check"></i> ${tx.status || 'สำเร็จ'}</span></td>
+                    <td class="p-3 text-center">
+                        ${tx.type === 'รายรับ' ? `<button onclick="alert('แสดงใบเสร็จเลขที่: ${tx.receipt_no}')" class="text-indigo-600 hover:underline text-xs">ใบเสร็จ</button>` : '-'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
